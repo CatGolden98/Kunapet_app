@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# Ejecutar todo en la subcarpeta 'project'
+defaults:
+  run:
+    working-directory: project
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -20,6 +25,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: project/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -34,6 +40,6 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./project/dist
           user_name: github-actions[bot]
           user_email: 41898282+github-actions[bot]@users.noreply.github.com
