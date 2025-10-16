@@ -19,11 +19,13 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onNavigate, productId, on
   const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState(false);
 
-  const productImages = [
-    'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800',
-    'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800',
-    'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800',
-  ];
+  const productImages = Array.isArray(product?.photos) && product.photos.length > 0
+    ? product.photos
+    : [
+        'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800',
+        'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800',
+        'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800',
+      ];
 
   const sizes = ['Pequeño', 'Mediano', 'Grande'];
   const flavors = ['Pollo', 'Carne', 'Pescado'];

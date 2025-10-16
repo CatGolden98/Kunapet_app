@@ -116,6 +116,14 @@ const PaymentConfirmation: React.FC<PaymentConfirmationProps> = ({ context }) =>
               <Receipt className="w-5 h-5 mr-2" />
               Descargar Comprobante
             </button>
+
+            <button
+              onClick={() => context.setCurrentScreen('order-details')}
+              className="w-full flex items-center justify-center py-3 rounded-xl font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors"
+            >
+              <Receipt className="w-5 h-5 mr-2" />
+              Ver Detalles del Pedido
+            </button>
             
             <button
               onClick={handleGoHome}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Bell, User, Stethoscope, Navigation, ShoppingBag, Star, TrendingUp, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import logoImg from '../assets/WhatsApp Image 2025-10-08 at 3.14.40 PM.png';
@@ -6,9 +6,10 @@ import logoImg from '../assets/WhatsApp Image 2025-10-08 at 3.14.40 PM.png';
 interface HomeScreenNewProps {
   onNavigate: (screen: string, data?: any) => void;
   userId: string;
+  onAddToCart?: (item: { id: string; name: string; price: number; image?: string }) => void;
 }
 
-const HomeScreenNew: React.FC<HomeScreenNewProps> = ({ onNavigate, userId }) => {
+const HomeScreenNew: React.FC<HomeScreenNewProps> = ({ onNavigate, userId, onAddToCart }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('San Borja, Lima');
   const [selectedSpecies, setSelectedSpecies] = useState<string[]>([]);
@@ -17,12 +18,31 @@ const HomeScreenNew: React.FC<HomeScreenNewProps> = ({ onNavigate, userId }) => 
   const [discountedProducts, setDiscountedProducts] = useState<any[]>([]);
   const [trendingItems, setTrendingItems] = useState<any[]>([]);
   const [kunapuntos, setKunapuntos] = useState(0);
+  const [fullName, setFullName] = useState<string>('');
+
+  const discountedRef = useRef<HTMLDivElement>(null);
+  const trendingRef = useRef<HTMLDivElement>(null);
+  const scrollBy = (ref: React.RefObject<HTMLDivElement>, dir: 'left'|'right') => {
+    const el = ref.current; if (!el) return;
+    const delta = dir === 'left' ? -320 : 320;
+    el.scrollBy({ left: delta, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     loadUserData();
   }, [userId]);
 
   const loadUserData = async () => {
+   
+
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', userId)
+      .single();
+    if (profile?.full_name) setFullName(profile.full_name);
+
     const { data: pets } = await supabase
       .from('pets')
       .select('*')
@@ -42,19 +62,29 @@ const HomeScreenNew: React.FC<HomeScreenNewProps> = ({ onNavigate, userId }) => 
 
     const { data: discounted } = await supabase
       .from('products')
-      .select('*, providers(business_name, logo_url)')
+      .select('id,name,price,discount_percentage,photos,providers(business_name)')
       .gt('discount_percentage', 0)
-      .limit(5);
+      .limit(8);
 
     if (discounted) setDiscountedProducts(discounted);
 
     const { data: trending } = await supabase
       .from('products')
-      .select('*, providers(business_name, logo_url)')
+      .select('id,name,price,photos,providers(business_name)')
       .eq('trending', true)
-      .limit(5);
+      .limit(12);
 
     if (trending) setTrendingItems(trending);
+
+    const species = pets?.[0]?.species;
+    if (species) {
+      const { data: rec } = await supabase
+        .from('products')
+        .select('id, name, price, photos')
+        .or(`species.eq.${species},species.is.null`)
+        .limit(6);
+      if (rec) setRecommendedProducts(rec);
+    }
   };
 
   const toggleSpecies = (species: string) => {
@@ -109,7 +139,7 @@ const HomeScreenNew: React.FC<HomeScreenNewProps> = ({ onNavigate, userId }) => 
         <div className="bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl p-5 text-white shadow-md">
           <div className="flex items-start justify-between mb-2">
             <div>
-              <p className="text-base font-bold mb-1">¡Hola, María! 👋</p>
+              <p className="text-base font-bold mb-1">¡Hola, {fullName || 'cliente'}! 👋</p>
               <p className="text-sm opacity-90">¿Qué necesita tu mascota hoy?</p>
             </div>
           </div>
@@ -117,7 +147,12 @@ const HomeScreenNew: React.FC<HomeScreenNewProps> = ({ onNavigate, userId }) => 
 
         {/* Services Grid */}
         <div>
-          <h3 className="text-base font-bold text-gray-800 mb-3">Servicios</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-bold text-gray-800">Servicios</h3>
+            <button onClick={() => onNavigate('product-cart')} className="text-sm text-primary-600 font-semibold flex items-center">
+              <ShoppingBag className="w-4 h-4 mr-1" /> Mi Carrito
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => onNavigate('services', { category: 'veterinary' })}
@@ -216,8 +251,8 @@ const HomeScreenNew: React.FC<HomeScreenNewProps> = ({ onNavigate, userId }) => 
           <div className="bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-2xl p-5 text-white shadow-md">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs opacity-90 mb-1">Tus Kunapuntos</p>
-                <p className="text-2xl font-bold">{kunapuntos}</p>
+                <p className="text-xs text-black opacity-90 mb-1">Tus Kunapuntos</p>
+                <p className="text-2xl text-black font-bold">{kunapuntos}</p>
               </div>
               <button
                 onClick={() => onNavigate('kunapuntos')}
@@ -229,29 +264,37 @@ const HomeScreenNew: React.FC<HomeScreenNewProps> = ({ onNavigate, userId }) => 
           </div>
         )}
 
-        {/* Recommended Products - Optional */}
-        {userPets.length > 0 && (
+        {/* Recomendaciones */}
+        {recommendedProducts.length > 0 && (
           <div>
-            <h3 className="text-base font-bold text-gray-800 mb-3">
-              Para {userPets[0]?.name || 'tu mascota'}
-            </h3>
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-              {[1, 2, 3].map((item) => (
-                <div
-                  key={item}
-                  className="flex-shrink-0 w-40 bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => onNavigate('product-detail', { id: item })}
-                >
-                  <div className="w-full h-28 bg-gray-200 rounded-lg mb-2"></div>
-                  <p className="text-xs font-semibold text-gray-800 line-clamp-2 mb-1">
-                    Producto recomendado {item}
-                  </p>
-                  <p className="text-xs text-gray-500 mb-2">Para {userPets[0]?.species}</p>
+            <h3 className="text-base font-bold text-gray-800 mb-3">Recomendaciones</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {recommendedProducts.map((p) => (
+                <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
+                  <div className="w-full h-24 bg-gray-200 rounded-lg mb-3 overflow-hidden">
+                    {Array.isArray(p.photos) && p.photos[0] ? (
+                      <img src={p.photos[0]} alt={p.name} className="w-full h-full object-cover" />
+                    ) : null}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800 mb-1 line-clamp-2">{p.name}</p>
+                  <p className="text-xs text-gray-500 mb-2">Para {userPets[0]?.species || 'tu mascota'}</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-primary-600">S/ 49.90</span>
-                    <div className="flex items-center text-xs text-yellow-500">
-                      <Star className="w-3 h-3 fill-current mr-1" />
-                      4.8
+                    <span className="text-sm font-bold text-primary-600">S/ {Number(p.price).toFixed(2)}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onNavigate('product-detail', { productId: p.id })}
+                        className="text-xs px-2 py-1 bg-gray-100 rounded-lg hover:bg-gray-200"
+                      >
+                        Ver
+                      </button>
+                      {onAddToCart && (
+                        <button
+                          onClick={() => onAddToCart({ id: p.id, name: p.name, price: p.price, image: Array.isArray(p.photos) && p.photos[0] ? p.photos[0] : undefined })}
+                          className="text-xs px-2 py-1 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                        >
+                          Añadir
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -264,15 +307,23 @@ const HomeScreenNew: React.FC<HomeScreenNewProps> = ({ onNavigate, userId }) => 
         {discountedProducts.length > 0 && (
           <div>
             <h3 className="text-base font-bold text-gray-800 mb-3">Productos con Descuento</h3>
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+            <div className="flex items-center justify-end gap-2 mb-2 hidden md:flex">
+              <button onClick={() => scrollBy(discountedRef, 'left')} className="px-2 py-1 bg-white text-gray-700 rounded-lg border hover:bg-gray-50" aria-label="Anterior">◄</button>
+              <button onClick={() => scrollBy(discountedRef, 'right')} className="px-2 py-1 bg-white text-gray-700 rounded-lg border hover:bg-gray-50" aria-label="Siguiente">►</button>
+            </div>
+            <div ref={discountedRef} className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
               {discountedProducts.map((product) => (
                 <div
                   key={product.id}
                   className="flex-shrink-0 w-40 bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => onNavigate('product-detail', { id: product.id })}
+                  onClick={() => onNavigate('product-detail', { productId: product.id })}
                 >
                   <div className="relative">
-                    <div className="w-full h-28 bg-gray-200 rounded-lg mb-2"></div>
+                    <div className="w-full h-28 bg-gray-200 rounded-lg mb-2 overflow-hidden">
+                      {Array.isArray(product.photos) && product.photos[0] ? (
+                        <img src={product.photos[0]} alt={product.name} className="w-full h-full object-cover" />
+                      ) : null}
+                    </div>
                     <div className="absolute top-2 right-2 bg-secondary-500 text-white text-xs px-2 py-1 rounded-full font-bold">
                       -{product.discount_percentage}%
                     </div>
@@ -309,10 +360,14 @@ const HomeScreenNew: React.FC<HomeScreenNewProps> = ({ onNavigate, userId }) => 
                 <div
                   key={item.id}
                   className="flex-shrink-0 w-40 bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => onNavigate('product-detail', { id: item.id })}
+                  onClick={() => onNavigate('product-detail', { productId: item.id })}
                 >
                   <div className="relative">
-                    <div className="w-full h-28 bg-gray-200 rounded-lg mb-2"></div>
+                    <div className="w-full h-28 bg-gray-200 rounded-lg mb-2 overflow-hidden">
+                      {Array.isArray(item.photos) && item.photos[0] ? (
+                        <img src={item.photos[0]} alt={item.name} className="w-full h-full object-cover" />
+                      ) : null}
+                    </div>
                     <div className="absolute top-2 left-2 bg-yellow-400 text-gray-800 text-xs px-2 py-1 rounded-full font-bold flex items-center">
                       <TrendingUp className="w-3 h-3 mr-1" />
                       HOT

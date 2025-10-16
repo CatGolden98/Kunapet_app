@@ -18,6 +18,10 @@ import ProviderProfile from './components/ProviderProfile';
 import BookingCart from './components/BookingCart';
 import PaymentConfirmation from './components/PaymentConfirmation';
 import NotificationsScreen from './components/NotificationsScreen';
+import ProductCart from './components/ProductCart';
+import PaymentMethods from './components/PaymentMethods';
+import SecurityPrivacy from './components/SecurityPrivacy';
+import OrderDetails from './components/OrderDetails';
 import './index.css';
 
 export type Screen =
@@ -36,10 +40,13 @@ export type Screen =
   | 'provider-profile'
   | 'provider-detail'
   | 'product-detail'
-  | 'cart'
   | 'booking-cart'
   | 'payment-confirmation'
-  | 'notifications';
+  | 'notifications'
+  | 'product-cart'
+  | 'payment-methods'
+  | 'security'
+  | 'order-details';
 
 interface NavigationData {
   [key: string]: any;
@@ -50,6 +57,7 @@ function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('splash');
   const [navigationData, setNavigationData] = useState<NavigationData>({});
   const [cartItems, setCartItems] = useState<any[]>([]);
+  const [productCart, setProductCart] = useState<Array<{ id: string; name: string; price: number; image?: string; qty: number }>>([]);
 
   useEffect(() => {
     if (currentScreen === 'splash') {
@@ -81,6 +89,29 @@ function AppContent() {
     setCartItems([...cartItems, product]);
   };
 
+  const handleAddProductToCart = (item: { id: string; name: string; price: number; image?: string }) => {
+    setProductCart(prev => {
+      const idx = prev.findIndex(p => p.id === item.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], qty: copy[idx].qty + 1 };
+        return copy;
+      }
+      return [...prev, { ...item, qty: 1 }];
+    });
+  };
+
+  const handleUpdateProductQty = (id: string, delta: number) => {
+    setProductCart(prev => prev
+      .map(p => (p.id === id ? { ...p, qty: Math.max(1, p.qty + delta) } : p))
+      .filter(p => p.qty > 0)
+    );
+  };
+
+  const handleRemoveProduct = (id: string) => {
+    setProductCart(prev => prev.filter(p => p.id !== id));
+  };
+
   const renderScreen = () => {
     if (loading && currentScreen !== 'splash') {
       return (
@@ -100,12 +131,24 @@ function AppContent() {
         return <AuthScreenNew onNavigate={handleNavigate} />;
       case 'home':
         return user ? (
-          <HomeScreenNew onNavigate={handleNavigate} userId={user.id} />
+          <HomeScreenNew onNavigate={handleNavigate} userId={user.id} onAddToCart={handleAddProductToCart} />
         ) : (
           <AuthScreenNew onNavigate={handleNavigate} />
         );
       case 'shop':
-        return <KunapetShop onNavigate={handleNavigate} onAddToCart={handleAddToCart} />;
+        return (
+          <KunapetShop
+            onNavigate={handleNavigate}
+            onAddToCart={(p: any) =>
+              handleAddProductToCart({
+                id: p.id,
+                name: p.name,
+                price: p.price,
+                image: Array.isArray(p.photos) && p.photos.length > 0 ? p.photos[0] : undefined,
+              })
+            }
+          />
+        );
       case 'kunapuntos':
         return user ? (
           <KunapuntosScreen onNavigate={handleNavigate} userId={user.id} />
@@ -129,11 +172,24 @@ function AppContent() {
       case 'account':
         return <AccountScreen onNavigate={handleNavigate} />;
       case 'services':
-        return <ServiceListingNew onNavigate={handleNavigate} category={navigationData.category || 'veterinary'} />;
+        return <ServiceListingNew onNavigate={handleNavigate} category={navigationData.category || 'veterinary'} onAddToCart={handleAddProductToCart} />;
       case 'provider-detail':
         return <ProviderProfileNew onNavigate={handleNavigate} providerId={navigationData.providerId} />;
       case 'product-detail':
-        return <ProductDetail onNavigate={handleNavigate} productId={navigationData.productId} onAddToCart={handleAddToCart} />;
+        return (
+          <ProductDetail
+            onNavigate={handleNavigate}
+            productId={navigationData.productId}
+            onAddToCart={(p: any) =>
+              handleAddProductToCart({
+                id: p.id,
+                name: p.name,
+                price: p.price,
+                image: Array.isArray(p.photos) && p.photos.length > 0 ? p.photos[0] : undefined,
+              })
+            }
+          />
+        );
       case 'pet-profile':
         return <PetProfile context={{ currentScreen, setCurrentScreen: handleNavigate } as any} />;
       case 'service-listing':
@@ -142,6 +198,29 @@ function AppContent() {
         return <ProviderProfile context={{ currentScreen, setCurrentScreen: handleNavigate } as any} />;
       case 'booking-cart':
         return <BookingCart context={{ currentScreen, setCurrentScreen: handleNavigate, cartItems } as any} />;
+      case 'product-cart':
+        return (
+          <ProductCart
+            items={productCart}
+            onUpdateQty={handleUpdateProductQty}
+            onRemove={handleRemoveProduct}
+            onProceed={() => setCurrentScreen('payment-methods')}
+            onBack={() => setCurrentScreen('home')}
+          />
+        );
+      case 'payment-methods':
+        return (
+          <PaymentMethods
+            total={productCart.reduce((sum, i) => sum + i.price * i.qty, 0)}
+            onBack={() => setCurrentScreen('product-cart')}
+            onSuccess={(paymentInfo) => setCurrentScreen('payment-confirmation')}
+            onSecurity={() => setCurrentScreen('security')}
+          />
+        );
+      case 'security':
+        return <SecurityPrivacy onBack={() => setCurrentScreen('payment-methods')} />;
+      case 'order-details':
+        return <OrderDetails onBack={() => setCurrentScreen('home')} />;
       case 'payment-confirmation':
         return <PaymentConfirmation context={{ currentScreen, setCurrentScreen: handleNavigate } as any} />;
       case 'notifications':

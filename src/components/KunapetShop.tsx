@@ -51,14 +51,14 @@ const KunapetShop: React.FC<KunapetShopProps> = ({ onNavigate, onAddToCart }) =>
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={() => onNavigate('home')}
-            className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            className="p-2 rounded-full bg-white text-secondary-600 hover:bg-white/90 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-2xl font-bold">Kunapet Shop</h1>
+          <h1 className="text-2xl text-black font-bold">Kunapet Shop</h1>
           <button
-            onClick={() => onNavigate('cart')}
-            className="relative p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            onClick={() => onNavigate('product-cart')}
+            className="relative p-2 rounded-full bg-white text-secondary-600 hover:bg-white/90 transition-colors"
           >
             <ShoppingCart className="w-5 h-5" />
             {cartCount > 0 && (
@@ -120,7 +120,17 @@ const KunapetShop: React.FC<KunapetShopProps> = ({ onNavigate, onAddToCart }) =>
               onClick={() => onNavigate('product-detail', { productId: product.id })}
             >
               <div className="relative">
-                <div className="w-full h-40 bg-gray-200"></div>
+                <div className="w-full h-40 bg-gray-200 overflow-hidden">
+                  {Array.isArray(product.photos) && typeof product.photos[0] === 'string' && product.photos[0].trim() ? (
+                    <img
+                      src={product.photos[0]}
+                      alt={product.name}
+                      loading="lazy"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : null}
+                </div>
                 {product.discount_percentage > 0 && (
                   <div className="absolute top-2 right-2 bg-secondary-500 text-white text-xs px-2 py-1 rounded-full font-bold">
                     -{product.discount_percentage}%

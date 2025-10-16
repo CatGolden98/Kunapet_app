@@ -6,14 +6,17 @@ import logoImg from '../assets/WhatsApp Image 2025-10-08 at 3.14.40 PM.png';
 interface ServiceListingNewProps {
   onNavigate: (screen: string, data?: any) => void;
   category: string;
+  onAddToCart?: (item: { id: string; name: string; price: number; image?: string }) => void;
 }
 
-const ServiceListingNew: React.FC<ServiceListingNewProps> = ({ onNavigate, category }) => {
+const ServiceListingNew: React.FC<ServiceListingNewProps> = ({ onNavigate, category, onAddToCart }) => {
   const [providers, setProviders] = useState<any[]>([]);
   const [filteredProviders, setFilteredProviders] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showRelated, setShowRelated] = useState<{ open: boolean; providerName?: string } | null>(null);
+  const [relatedItems, setRelatedItems] = useState<any[]>([]);
 
   const [filters, setFilters] = useState({
     species: [] as string[],
@@ -85,6 +88,16 @@ const ServiceListingNew: React.FC<ServiceListingNewProps> = ({ onNavigate, categ
     setFilteredProviders(filtered);
   };
 
+  const openRelated = async (provider: any) => {
+    setShowRelated({ open: true, providerName: provider.business_name });
+    const { data } = await supabase
+      .from('products')
+      .select('id,name,price,photos')
+      .or(`category.eq.${category},category.is.null`)
+      .limit(8);
+    setRelatedItems(data || []);
+  };
+
   const toggleSpeciesFilter = (species: string) => {
     setFilters(prev => ({
       ...prev,
@@ -154,10 +167,9 @@ const ServiceListingNew: React.FC<ServiceListingNewProps> = ({ onNavigate, categ
           </div>
         ) : (
           filteredProviders.map((provider) => (
-            <button
+            <div
               key={provider.id}
-              onClick={() => onNavigate('provider-detail', { providerId: provider.id })}
-              className="w-full bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all active:scale-98"
+              className="w-full bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all"
             >
               <div className="flex items-start">
                 <div className="w-16 h-16 bg-gray-200 rounded-xl flex-shrink-0 mr-4 overflow-hidden">
@@ -171,7 +183,7 @@ const ServiceListingNew: React.FC<ServiceListingNewProps> = ({ onNavigate, categ
                 </div>
 
                 <div className="flex-1 text-left">
-                  <h3 className="font-bold text-gray-800 mb-1">{provider.business_name}</h3>
+                  <h3 className="font-bold text-gray-800 mb-1 cursor-pointer" onClick={() => onNavigate('provider-detail', { providerId: provider.id })}>{provider.business_name}</h3>
 
                   <div className="flex items-center mb-2">
                     <div className="flex items-center">
@@ -200,9 +212,16 @@ const ServiceListingNew: React.FC<ServiceListingNewProps> = ({ onNavigate, categ
                       </span>
                     )}
                   </div>
+
+                  <button
+                    onClick={() => openRelated(provider)}
+                    className="text-xs px-2 py-1 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                  >
+                    Ver relacionados
+                  </button>
                 </div>
               </div>
-            </button>
+            </div>
           ))
         )}
       </div>
@@ -318,6 +337,53 @@ const ServiceListingNew: React.FC<ServiceListingNewProps> = ({ onNavigate, categ
                 Aplicar Filtros
               </button>
             </div>
+          </div>
+        </div>
+      )}
+   
+
+      {showRelated?.open && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+          <div className="bg-white w-full rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Relacionados {showRelated.providerName ? `- ${showRelated.providerName}` : ''}</h2>
+              <button onClick={() => setShowRelated(null)} className="p-2 rounded-full hover:bg-gray-100">
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+            {relatedItems.length === 0 ? (
+              <p className="text-gray-600">No hay productos relacionados por ahora.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {relatedItems.map((item) => (
+                  <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border">
+                    <div className="w-full h-24 bg-gray-200 rounded-lg mb-3 overflow-hidden">
+                      {Array.isArray(item.photos) && item.photos[0] ? (
+  <img
+    src={item.photos[0]}
+    alt={item.name}
+    loading="lazy"
+    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+    className="w-full h-full object-cover"
+  />
+) : null}
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800 mb-1 line-clamp-2">{item.name}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-primary-600">S/ {Number(item.price).toFixed(2)}</span>
+                      {onAddToCart && (
+                        <button
+                          onClick={() => onAddToCart({ id: item.id, name: item.name, price: item.price, image: Array.isArray(item.photos) && item.photos[0] ? item.photos[0] : undefined })}
+                          className="text-xs px-2 py-1 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                        >
+                          Añadir
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
