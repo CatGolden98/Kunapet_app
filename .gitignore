@@ -3,3 +3,8 @@ node_modules/`n`dist/`n`*.env
 .env.local 
 dist/ 
 supabase/.temp/ 
+.env 
+.env.local 
+dist/ 
+node_modules/ 
+supabase/.temp/ 
