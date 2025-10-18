@@ -1,16 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Fallback para producción (GitHub Pages) sin Secrets
+const isGhPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
+
+// TODO: Reemplaza FALLBACK_ANON por tu anon key del proyecto hrtsvbpbvxsubeepwgqh
+const FALLBACK_URL = 'https://hrtsvbpbvxsubeepwgqh.supabase.co';
+const FALLBACK_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhydHN2YnBidnhzdWJlZXB3Z3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0ODkxNTMsImV4cCI6MjA3NjA2NTE1M30.J1AYc9lM0k2tC-kr_m8LFo4wk33k37hOjFyUX0e_0jY';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || (isGhPages ? FALLBACK_URL : '');
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || (isGhPages ? FALLBACK_ANON : '');
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL!,
-  import.meta.env.VITE_SUPABASE_ANON_KEY!
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export interface Database {
   public: {
